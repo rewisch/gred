@@ -1,0 +1,6 @@
+/target
+
+# editor scratch / bench output
+*.gred.tmp
+bench_out.txt
+/bench_data/

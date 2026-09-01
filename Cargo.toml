@@ -1,0 +1,25 @@
+[package]
+name = "gred"
+version = "0.1.0"
+edition = "2021"
+description = "A very fast, very lean text viewer/editor for huge files on Windows"
+
+[dependencies]
+eframe = { version = "0.29", default-features = true }
+egui = "0.29"
+memmap2 = "0.9"
+memchr = "2"
+rfd = "0.15"
+grep-regex = "0.1"
+grep-searcher = "0.1"
+grep-matcher = "0.1"
+regex = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 1

@@ -1,0 +1,13 @@
+# The chocolatey `rust` package is the *-pc-windows-gnu toolchain but ships only
+# a partial binutils (no assembler), so `raw-dylib` import-library generation
+# fails. Use the full MinGW-w64 toolchain installed via `choco install mingw`.
+[target.x86_64-pc-windows-gnu]
+linker = "C:/ProgramData/mingw64/mingw64/bin/gcc.exe"
+rustflags = [
+    "-Cdlltool=C:/ProgramData/mingw64/mingw64/bin/dlltool.exe",
+]
+
+# NOTE: `choco install mingw` added C:\ProgramData\mingw64\mingw64\bin to the
+# system PATH, so fresh shells pick up `as`/`ld`/`dlltool` automatically. In a
+# shell started before that install, prepend it:
+#   PATH="/c/ProgramData/mingw64/mingw64/bin:$PATH" cargo build
