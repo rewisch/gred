@@ -1,8 +1,11 @@
 /target
 
+# local-only: large third-party software-GL DLLs + assembled dist folder
+/mesa/
+/dist/
+
 # editor scratch / bench output
 *.gred.tmp
 bench_out.txt
 /bench_data/
-/mesa/
-/run.ps1
+*.png

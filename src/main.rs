@@ -22,6 +22,16 @@ fn main() -> eframe::Result<()> {
         }
     }
 
+    // `--software` (or GRED_SOFTWARE=1): force Mesa's llvmpipe software renderer.
+    // Needed on machines with no usable GPU driver (headless boxes, plain RDP
+    // sessions), where the default renderer path can crash. Harmless if the
+    // Mesa DLLs next to the exe aren't present — the system opengl32 is used.
+    if args.iter().any(|a| a == "--software") || std::env::var_os("GRED_SOFTWARE").is_some() {
+        std::env::set_var("GALLIUM_DRIVER", "llvmpipe");
+        std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+        std::env::set_var("MESA_GL_VERSION_OVERRIDE", "3.3");
+    }
+
     let open_path = args.into_iter().find(|a| !a.starts_with('-'));
 
     let native_options = eframe::NativeOptions {
@@ -44,8 +54,9 @@ fn main() -> eframe::Result<()> {
             eprintln!(
                 "gred: could not create an OpenGL 2.0+ context ({e}).\n\
                  This usually means a headless/RDP session with no GPU driver.\n\
-                 Fix: put a software-GL `opengl32.dll` (Mesa3D llvmpipe, plus\n\
-                 `libgallium_wgl.dll`) next to gred.exe, or run in a desktop session."
+                 Fix: run `gred --software` with the bundled Mesa DLLs\n\
+                 (opengl32.dll + libgallium_wgl.dll) next to gred.exe, or run\n\
+                 in a real desktop session."
             );
         }
     }

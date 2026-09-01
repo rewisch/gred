@@ -118,14 +118,27 @@ cargo test
 
 ### Running headless / over RDP
 
-eframe needs an OpenGL 2.0+ context. In a session with no GPU driver, drop a
-software-GL `opengl32.dll` (Mesa3D llvmpipe) plus `libgallium_wgl.dll` next to
-`gred.exe`. In a normal desktop session nothing extra is needed.
+On a normal desktop with a GPU, just run `gred.exe` — nothing extra needed.
+
+On a machine with no usable GPU driver (headless server, plain RDP session)
+eframe's OpenGL context fails, and Mesa's default renderer path can even
+segfault. Two steps:
+
+1. Put Mesa3D's `opengl32.dll` + `libgallium_wgl.dll` next to `gred.exe`
+   (the **MinGW** build from <https://github.com/pal1000/mesa-dist-win/releases> —
+   the MSVC build needs a newer VC++ runtime).
+2. Start with `--software` so gred forces the llvmpipe software renderer
+   (`GALLIUM_DRIVER=llvmpipe`). Env var `GRED_SOFTWARE=1` does the same.
+
+`gred-software-gl.cmd` and `run.ps1` do both for you. Rendering is still CPU-only
+and less stable than a real display session — for heavy use, run gred on an
+ordinary Windows desktop.
 
 ## Usage
 
 ```
 gred [file]                 open the GUI (optionally on a file)
+gred --software [file]       force Mesa llvmpipe software GL (headless / RDP)
 gred --gen <file> <gb>       write a synthetic test file
 gred --bench <file> [--search <pat>]   headless benchmark / self-test
 ```
