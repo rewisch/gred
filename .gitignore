@@ -4,3 +4,5 @@
 *.gred.tmp
 bench_out.txt
 /bench_data/
+/mesa/
+/run.ps1
