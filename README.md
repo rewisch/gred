@@ -142,3 +142,23 @@ gred --software [file]       force Mesa llvmpipe software GL (headless / RDP)
 gred --gen <file> <gb>       write a synthetic test file
 gred --bench <file> [--search <pat>]   headless benchmark / self-test
 ```
+
+## CI & releases
+
+* **CI** (`.github/workflows/ci.yml`) — every push / PR builds debug + release on
+  `windows-latest`, runs `cargo test`, and runs a headless engine smoke test
+  (`--gen` a small file, then `--bench` it). `cargo fmt` / `clippy` run as
+  non-blocking checks.
+* **Versioning** is driven by [release-please]. Land
+  [Conventional Commits] on `main` (`feat:`, `fix:`, `feat!:` …); release-please
+  keeps a "release PR" open that bumps `version` in `Cargo.toml` + `Cargo.lock`
+  and updates `CHANGELOG.md`. **Merge that PR** to tag `vX.Y.Z` and cut a GitHub
+  Release.
+* **Release build** (`.github/workflows/release.yml`) — when a release is cut,
+  a job builds `gred.exe` and attaches
+  `gred-vX.Y.Z-x86_64-pc-windows-msvc.zip` (+ `.sha256`) to it. You can also
+  publish manually by pushing a tag (`git tag v1.2.3 && git push --tags`) or via
+  *Run workflow*.
+
+[release-please]: https://github.com/googleapis/release-please
+[Conventional Commits]: https://www.conventionalcommits.org/

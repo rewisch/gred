@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Versioning. release-please keeps an open "release PR" that bumps the version
+  # in Cargo.toml + Cargo.lock and maintains CHANGELOG.md from the Conventional
+  # Commits landed on main. Merging that PR tags vX.Y.Z and cuts a GitHub
+  # Release, which then triggers the build job below (via release_created).
+  # ---------------------------------------------------------------------------
+  release-please:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ---------------------------------------------------------------------------
+  # Build the Windows binary and attach a zip to the release. Runs when:
+  #   * release-please just cut a release, or
+  #   * a v* tag was pushed manually, or
+  #   * the workflow was dispatched by hand.
+  # ---------------------------------------------------------------------------
+  build-release:
+    needs: release-please
+    if: >-
+      always() &&
+      (needs.release-please.outputs.release_created == 'true' ||
+       startsWith(github.ref, 'refs/tags/v') ||
+       github.event_name == 'workflow_dispatch')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --release --verbose
+
+      - name: Build
+        run: cargo build --release --verbose
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ needs.release-please.outputs.tag_name }}" ]; then
+            echo "tag=${{ needs.release-please.outputs.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            v=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.tag.outputs.tag }}"
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          Copy-Item target/release/gred.exe staging/
+          Copy-Item README.md, Plan.txt, gred-software-gl.cmd, run.ps1 staging/
+          $zip = "gred-$tag-x86_64-pc-windows-msvc.zip"
+          Compress-Archive -Path staging/* -DestinationPath $zip -Force
+          (Get-FileHash $zip -Algorithm SHA256).Hash | Out-File "$zip.sha256"
+          "ASSET=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Ensure release exists and upload assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" "$ASSET" "$ASSET.sha256" --clobber
